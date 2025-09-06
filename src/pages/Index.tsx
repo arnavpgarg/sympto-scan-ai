@@ -1,14 +1,11 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { redirect } from "react-router-dom";
 
+// Redirect to Dashboard
 const Index = () => {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
-  );
+  // This component won't be used since we redirect to Dashboard
+  // But kept for compatibility
+  redirect("/");
+  return null;
 };
 
 export default Index;
