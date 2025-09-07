@@ -1,15 +1,9 @@
 import { useState, useCallback } from "react";
-import { Upload as UploadIcon, FileText, Image, File, CheckCircle } from "lucide-react";
+import { Upload as UploadIcon, FileText, Image, File, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_API_URL is not defined. Please set it in your environment variables.");
-}
 
 interface UploadState {
   file: File | null;
@@ -25,7 +19,7 @@ const Upload = () => {
     uploading: false,
     progress: 0,
     summary: null,
-    error: null,
+    error: null
   });
   const [dragOver, setDragOver] = useState(false);
   const { toast } = useToast();
@@ -43,7 +37,7 @@ const Upload = () => {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-
+    
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileSelect(files[0]);
@@ -51,31 +45,31 @@ const Upload = () => {
   }, []);
 
   const handleFileSelect = (file: File) => {
-    const validTypes = ["application/pdf", "text/plain", "image/jpeg", "image/png", "image/jpg"];
-
+    const validTypes = ['application/pdf', 'text/plain', 'image/jpeg', 'image/png', 'image/jpg'];
+    
     if (!validTypes.includes(file.type)) {
       toast({
         title: "Invalid file type",
         description: "Please upload a PDF, TXT, or image file.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
       toast({
         title: "File too large",
         description: "Please upload a file smaller than 10MB.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
 
-    setUploadState((prev) => ({
+    setUploadState(prev => ({
       ...prev,
       file,
       error: null,
-      summary: null,
+      summary: null
     }));
   };
 
@@ -89,70 +83,59 @@ const Upload = () => {
   const uploadAndProcess = async () => {
     if (!uploadState.file) return;
 
-    setUploadState((prev) => ({ ...prev, uploading: true, progress: 0 }));
+    setUploadState(prev => ({ ...prev, uploading: true, progress: 0 }));
+
+    // Simulate upload progress
+    const progressInterval = setInterval(() => {
+      setUploadState(prev => {
+        const newProgress = prev.progress + 10;
+        if (newProgress >= 100) {
+          clearInterval(progressInterval);
+          return { ...prev, progress: 100 };
+        }
+        return { ...prev, progress: newProgress };
+      });
+    }, 300);
 
     try {
-      const formData = new FormData();
-      formData.append("user_id", "test123"); // Replace with real logged-in user_id later
-      formData.append("file", uploadState.file);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Mock summary based on file type
+      const mockSummary = uploadState.file.name.includes('blood') 
+        ? "Blood test results analyzed. Key findings: Normal glucose levels (95 mg/dL), slightly elevated LDL cholesterol (145 mg/dL). Recommend dietary adjustments and follow-up in 3 months."
+        : uploadState.file.name.includes('xray') || uploadState.file.name.includes('chest')
+        ? "Chest X-ray analysis complete. Findings: Clear lung fields, normal heart size and position. No acute abnormalities detected. Results within normal limits."
+        : "Medical report processed successfully. Document contains patient information, test results, and clinical observations. Full summary available in the detailed view.";
 
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadState((prev) => {
-          const newProgress = prev.progress + 10;
-          if (newProgress >= 100) {
-            clearInterval(progressInterval);
-            return { ...prev, progress: 100 };
-          }
-          return { ...prev, progress: newProgress };
-        });
-      }, 300);
-
-      // 1) Upload report
-      const uploadRes = await fetch(`${API_URL}/upload-report`, {
-        method: "POST",
-        body: formData,
-      });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadData.detail || "Upload failed");
-
-      // 2) Summarize report
-      const summarizeRes = await fetch(`${API_URL}/summarize-report`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ document_id: uploadData.document_id }),
-      });
-      const summaryData = await summarizeRes.json();
-      if (!summarizeRes.ok) throw new Error(summaryData.detail || "Summarization failed");
-
-      // ✅ Set backend response in state
-      setUploadState((prev) => ({
+      setUploadState(prev => ({
         ...prev,
         uploading: false,
-        summary: summaryData.summary_text,
+        summary: mockSummary
       }));
 
       toast({
         title: "Upload successful",
         description: "Your medical report has been processed and summarized.",
       });
-    } catch (error: any) {
-      setUploadState((prev) => ({
+
+    } catch (error) {
+      setUploadState(prev => ({
         ...prev,
         uploading: false,
-        error: error.message || "Failed to process the file. Please try again.",
+        error: "Failed to process the file. Please try again."
       }));
-
+      
       toast({
         title: "Upload failed",
-        description: error.message || "There was an error processing your file.",
-        variant: "destructive",
+        description: "There was an error processing your file.",
+        variant: "destructive"
       });
     }
   };
 
   const getFileIcon = (fileName: string) => {
-    if (fileName.toLowerCase().includes(".pdf")) return <FileText className="h-8 w-8 text-red-500" />;
+    if (fileName.toLowerCase().includes('.pdf')) return <FileText className="h-8 w-8 text-red-500" />;
     if (fileName.toLowerCase().match(/\.(jpg|jpeg|png)$/)) return <Image className="h-8 w-8 text-blue-500" />;
     return <File className="h-8 w-8 text-gray-500" />;
   };
@@ -176,16 +159,21 @@ const Upload = () => {
           {!uploadState.file ? (
             <div
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                dragOver
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50'
               }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              aria-label="Drag and drop your file here"
             >
               <UploadIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Drag and drop your file here</h3>
-              <p className="text-muted-foreground mb-4">PDF, TXT, or Image files supported</p>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Drag and drop your file here
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                PDF, TXT, or Image files supported
+              </p>
               <label htmlFor="file-upload">
                 <Button className="medical-button-primary" type="button">
                   Browse Files
@@ -213,7 +201,7 @@ const Upload = () => {
                 {!uploadState.uploading && !uploadState.summary && (
                   <Button
                     variant="outline"
-                    onClick={() => setUploadState((prev) => ({ ...prev, file: null }))}
+                    onClick={() => setUploadState(prev => ({ ...prev, file: null }))}
                   >
                     Remove
                   </Button>
@@ -233,7 +221,10 @@ const Upload = () => {
 
               {/* Action Button */}
               {!uploadState.uploading && !uploadState.summary && (
-                <Button className="medical-button-secondary w-full" onClick={uploadAndProcess}>
+                <Button 
+                  className="medical-button-secondary w-full"
+                  onClick={uploadAndProcess}
+                >
                   Parse & Summarize
                 </Button>
               )}
@@ -255,10 +246,12 @@ const Upload = () => {
             <div className="bg-muted rounded-lg p-4 mb-4">
               <p className="text-foreground">{uploadState.summary}</p>
             </div>
-
+            
             <div className="flex space-x-3">
-              <Button className="medical-button-primary">View Full Report</Button>
-              <Button variant="outline" onClick={() => setUploadState({ ...uploadState, file: null, summary: null })}>
+              <Button className="medical-button-primary">
+                View Full Report
+              </Button>
+              <Button variant="outline">
                 Upload Another
               </Button>
             </div>
@@ -271,10 +264,10 @@ const Upload = () => {
         <Card className="medical-card border-destructive">
           <CardContent className="p-6">
             <p className="text-destructive">{uploadState.error}</p>
-            <Button
+            <Button 
               className="mt-3"
-              variant="outline"
-              onClick={() => setUploadState((prev) => ({ ...prev, error: null }))}
+              variant="outline" 
+              onClick={() => setUploadState(prev => ({ ...prev, error: null }))}
             >
               Try Again
             </Button>
