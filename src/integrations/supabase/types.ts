@@ -17,34 +17,35 @@ export type Database = {
       documents: {
         Row: {
           created_at: string | null
+          file_path: string | null
+          file_size: number | null
           filename: string
           id: string
           storage_url: string
+          upload_date: string | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
+          file_path?: string | null
+          file_size?: number | null
           filename: string
           id?: string
           storage_url: string
+          upload_date?: string | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
+          file_path?: string | null
+          file_size?: number | null
           filename?: string
           id?: string
           storage_url?: string
+          upload_date?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "documents_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       messages: {
         Row: {
@@ -68,15 +69,7 @@ export type Database = {
           role?: string
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "messages_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       summaries: {
         Row: {
