@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 interface Message {
   id: string;
   type: 'user' | 'ai';
@@ -37,88 +39,53 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!inputValue.trim()) return;
+const sendMessage = async () => {
+  if (!inputValue.trim()) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: inputValue,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(inputValue);
-      setMessages(prev => [...prev, aiResponse]);
-      setIsTyping(false);
-    }, 2000);
+  const userMessage: Message = {
+    id: Date.now().toString(),
+    type: 'user',
+    content: inputValue,
+    timestamp: new Date()
   };
 
-  const generateAIResponse = (userInput: string): Message => {
-    const input = userInput.toLowerCase();
-    
-    let response = "Based on your symptoms, here's what I can tell you:";
-    let conditions: string[] = [];
-    let urgency: 'low' | 'medium' | 'high' = 'low';
-    let recommendations: string[] = [];
+  setMessages(prev => [...prev, userMessage]);
+  setInputValue('');
+  setIsTyping(true);
 
-    if (input.includes('headache') || input.includes('head pain')) {
-      conditions = ['Tension Headache', 'Migraine', 'Sinus Congestion'];
-      urgency = 'medium';
-      recommendations = [
-        'Rest in a quiet, dark room',
-        'Stay hydrated',
-        'Consider over-the-counter pain relief',
-        'Monitor symptoms for 24-48 hours'
-      ];
-      response = "Headaches can have various causes. Based on your description, here are some possibilities:";
-    } else if (input.includes('fever') || input.includes('temperature')) {
-      conditions = ['Viral Infection', 'Bacterial Infection', 'Flu'];
-      urgency = 'medium';
-      recommendations = [
-        'Monitor temperature regularly',
-        'Rest and stay hydrated',
-        'Consider seeing a healthcare provider if fever persists > 3 days',
-        'Seek immediate care if temperature > 103°F (39.4°C)'
-      ];
-      response = "Fever is your body's natural response to infection. Here's what to consider:";
-    } else if (input.includes('chest pain') || input.includes('heart')) {
-      conditions = ['Chest Wall Pain', 'Acid Reflux', 'Anxiety'];
-      urgency = 'high';
-      recommendations = [
-        '⚠️ SEEK IMMEDIATE MEDICAL ATTENTION if pain is severe',
-        'Call emergency services if accompanied by shortness of breath',
-        'Avoid physical exertion',
-        'Do not drive yourself to hospital'
-      ];
-      response = "Chest pain requires careful evaluation. While many causes are benign, some require immediate attention:";
-    } else {
-      conditions = ['Common Cold', 'Viral Syndrome', 'Stress-related symptoms'];
-      recommendations = [
-        'Rest and monitor symptoms',
-        'Stay well-hydrated',
-        'Consider consulting a healthcare provider if symptoms worsen',
-        'Practice good hygiene to prevent spread'
-      ];
-    }
+  try {
+    const res = await fetch(`${API_URL}/symptom-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: "test123", message: inputValue }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Chat failed");
 
-    return {
-      id: (Date.now() + 1).toString(),
+    const aiResponse: Message = {
+      id: Date.now().toString(),
       type: 'ai',
-      content: response,
+      content: "Here’s what I found based on your symptoms:",
       timestamp: new Date(),
       metadata: {
-        conditions,
-        urgency,
-        recommendations
-      }
+        conditions: data.possible_conditions,
+        urgency: data.urgency,
+        recommendations: data.recommended_actions,
+      },
     };
-  };
+
+    setMessages(prev => [...prev, aiResponse]);
+  } catch (err: any) {
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      type: 'ai',
+      content: "Error contacting AI service. Please try again.",
+      timestamp: new Date()
+    }]);
+  } finally {
+    setIsTyping(false);
+  }
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

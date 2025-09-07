@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 interface UploadState {
   file: File | null;
   uploading: boolean;
@@ -98,41 +100,56 @@ const Upload = () => {
     }, 300);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Mock summary based on file type
-      const mockSummary = uploadState.file.name.includes('blood') 
-        ? "Blood test results analyzed. Key findings: Normal glucose levels (95 mg/dL), slightly elevated LDL cholesterol (145 mg/dL). Recommend dietary adjustments and follow-up in 3 months."
-        : uploadState.file.name.includes('xray') || uploadState.file.name.includes('chest')
-        ? "Chest X-ray analysis complete. Findings: Clear lung fields, normal heart size and position. No acute abnormalities detected. Results within normal limits."
-        : "Medical report processed successfully. Document contains patient information, test results, and clinical observations. Full summary available in the detailed view.";
+      try {
+  const formData = new FormData();
+  formData.append("user_id", "test123"); // later replace with real logged-in user
+  formData.append("file", uploadState.file);
 
-      setUploadState(prev => ({
-        ...prev,
-        uploading: false,
-        summary: mockSummary
-      }));
+  // 1) Upload
+  const uploadRes = await fetch(`${API_URL}/upload-report`, {
+    method: "POST",
+    body: formData,
+  });
+  const uploadData = await uploadRes.json();
+  if (!uploadRes.ok) throw new Error(uploadData.detail || "Upload failed");
 
-      toast({
-        title: "Upload successful",
-        description: "Your medical report has been processed and summarized.",
-      });
+  // 2) Summarize
+  const summarizeRes = await fetch(`${API_URL}/summarize-report`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ document_id: uploadData.document_id }),
+  });
+  const summaryData = await summarizeRes.json();
+  if (!summarizeRes.ok) throw new Error(summaryData.detail || "Summarization failed");
 
-    } catch (error) {
-      setUploadState(prev => ({
-        ...prev,
-        uploading: false,
-        error: "Failed to process the file. Please try again."
-      }));
-      
-      toast({
-        title: "Upload failed",
-        description: "There was an error processing your file.",
-        variant: "destructive"
-      });
-    }
-  };
+  setUploadState(prev => ({
+    ...prev,
+    uploading: false,
+    summary: summaryData.summary_text,
+  }));
+
+  toast({
+    title: "Upload successful",
+    description: "Your medical report has been processed and summarized.",
+  });
+
+} catch (error: any) {
+  setUploadState(prev => ({
+    ...prev,
+    uploading: false,
+    error: error.message || "Failed to process the file. Please try again."
+  }));
+
+  toast({
+    title: "Upload failed",
+    description: error.message || "There was an error processing your file.",
+    variant: "destructive"
+  });
+}
+  } finally {
+    clearInterval(progressInterval);
+  }
+};
 
   const getFileIcon = (fileName: string) => {
     if (fileName.toLowerCase().includes('.pdf')) return <FileText className="h-8 w-8 text-red-500" />;
@@ -277,5 +294,4 @@ const Upload = () => {
     </div>
   );
 };
-
 export default Upload;

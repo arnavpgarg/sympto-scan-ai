@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 
+const API_URL = import.meta.env.VITE_API_URL;
 interface PatientInfo {
   name: string;
   age: number;
@@ -36,78 +37,45 @@ const Summary = () => {
   const [playingAudio, setPlayingAudio] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Simulate API call to fetch report data
-    setTimeout(() => {
-      const mockData: ReportData = {
-        id: "1",
-        fileName: "blood_test_results_march.pdf",
-        uploadDate: "2024-01-15",
+useEffect(() => {
+  const fetchSummary = async () => {
+    try {
+      const res = await fetch(`${API_URL}/history/test123`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to load summary");
+
+      if (!data.summaries || data.summaries.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const latest = data.summaries[data.summaries.length - 1];
+
+      setReportData({
+        id: latest.id,
+        fileName: latest.filename || "report.pdf",
+        uploadDate: latest.upload_date,
         patientInfo: {
-          name: "John Davis",
-          age: 42,
-          dateOfBirth: "1982-03-15",
-          gender: "Male",
-          patientId: "PT-2024-001"
+          name: "N/A",   // backend doesn’t send yet
+          age: 0,
+          dateOfBirth: "",
+          gender: "",
+          patientId: "N/A"
         },
-        labResults: [
-          {
-            test: "Glucose",
-            result: "95 mg/dL",
-            reference: "70-100 mg/dL",
-            status: "normal"
-          },
-          {
-            test: "Total Cholesterol",
-            result: "225 mg/dL", 
-            reference: "<200 mg/dL",
-            status: "high"
-          },
-          {
-            test: "LDL Cholesterol",
-            result: "145 mg/dL",
-            reference: "<100 mg/dL", 
-            status: "high"
-          },
-          {
-            test: "HDL Cholesterol",
-            result: "45 mg/dL",
-            reference: ">40 mg/dL",
-            status: "normal"
-          },
-          {
-            test: "Triglycerides",
-            result: "180 mg/dL",
-            reference: "<150 mg/dL",
-            status: "high"
-          },
-          {
-            test: "Hemoglobin A1C",
-            result: "5.4%",
-            reference: "<5.7%", 
-            status: "normal"
-          },
-          {
-            test: "Creatinine",
-            result: "1.0 mg/dL",
-            reference: "0.7-1.3 mg/dL",
-            status: "normal"
-          },
-          {
-            test: "TSH",
-            result: "2.1 mIU/L",
-            reference: "0.4-4.0 mIU/L",
-            status: "normal"
-          }
-        ],
-        summary: "The blood test results show generally good health markers with some areas requiring attention. Glucose levels and kidney function are within normal ranges, indicating good metabolic and renal health. However, lipid panel shows elevated cholesterol levels that warrant dietary modifications and lifestyle changes. A1C levels confirm good long-term glucose control.",
-        clinicalNotes: "Patient presents with mildly elevated cholesterol levels. Recommend dietary consultation and increased physical activity. Follow-up testing in 3 months to assess response to lifestyle modifications. Consider statin therapy if levels remain elevated despite lifestyle changes."
-      };
-      
-      setReportData(mockData);
+        labResults: [],  // can be extended if backend extracts structured results
+        summary: latest.summary_text,
+        clinicalNotes: latest.recommendations.join(", "),
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
+
+  fetchSummary();
+}, []);
+
 
   const handlePlayAudio = async () => {
     setPlayingAudio(true);

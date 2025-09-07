@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+const API_URL = import.meta.env.VITE_API_URL;
 interface HistoryRecord {
   id: string;
   fileName: string;
