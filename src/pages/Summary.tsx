@@ -5,6 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined. Please set it in your environment variables.");
+}
+
 interface PatientInfo {
   name: string;
   age: number;
@@ -17,7 +23,7 @@ interface LabResult {
   test: string;
   result: string;
   reference: string;
-  status: 'normal' | 'high' | 'low' | 'critical';
+  status: "normal" | "high" | "low" | "critical";
 }
 
 interface ReportData {
@@ -37,98 +43,64 @@ const Summary = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate API call to fetch report data
-    setTimeout(() => {
-      const mockData: ReportData = {
-        id: "1",
-        fileName: "blood_test_results_march.pdf",
-        uploadDate: "2024-01-15",
-        patientInfo: {
-          name: "John Davis",
-          age: 42,
-          dateOfBirth: "1982-03-15",
-          gender: "Male",
-          patientId: "PT-2024-001"
-        },
-        labResults: [
-          {
-            test: "Glucose",
-            result: "95 mg/dL",
-            reference: "70-100 mg/dL",
-            status: "normal"
+    const fetchSummary = async () => {
+      try {
+        const res = await fetch(`${API_URL}/history/test123`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to load summary");
+
+        // Get the latest summary from backend
+        const latest = data.summaries[data.summaries.length - 1];
+
+        setReportData({
+          id: latest.id,
+          fileName: latest.filename || "report.pdf",
+          uploadDate: latest.upload_date,
+          patientInfo: {
+            name: "N/A", // Backend doesn’t provide this yet
+            age: 0,
+            dateOfBirth: "",
+            gender: "",
+            patientId: "N/A",
           },
-          {
-            test: "Total Cholesterol",
-            result: "225 mg/dL", 
-            reference: "<200 mg/dL",
-            status: "high"
-          },
-          {
-            test: "LDL Cholesterol",
-            result: "145 mg/dL",
-            reference: "<100 mg/dL", 
-            status: "high"
-          },
-          {
-            test: "HDL Cholesterol",
-            result: "45 mg/dL",
-            reference: ">40 mg/dL",
-            status: "normal"
-          },
-          {
-            test: "Triglycerides",
-            result: "180 mg/dL",
-            reference: "<150 mg/dL",
-            status: "high"
-          },
-          {
-            test: "Hemoglobin A1C",
-            result: "5.4%",
-            reference: "<5.7%", 
-            status: "normal"
-          },
-          {
-            test: "Creatinine",
-            result: "1.0 mg/dL",
-            reference: "0.7-1.3 mg/dL",
-            status: "normal"
-          },
-          {
-            test: "TSH",
-            result: "2.1 mIU/L",
-            reference: "0.4-4.0 mIU/L",
-            status: "normal"
-          }
-        ],
-        summary: "The blood test results show generally good health markers with some areas requiring attention. Glucose levels and kidney function are within normal ranges, indicating good metabolic and renal health. However, lipid panel shows elevated cholesterol levels that warrant dietary modifications and lifestyle changes. A1C levels confirm good long-term glucose control.",
-        clinicalNotes: "Patient presents with mildly elevated cholesterol levels. Recommend dietary consultation and increased physical activity. Follow-up testing in 3 months to assess response to lifestyle modifications. Consider statin therapy if levels remain elevated despite lifestyle changes."
-      };
-      
-      setReportData(mockData);
-      setLoading(false);
-    }, 1000);
-  }, []);
+          labResults: [], // (Optional) Map backend structured data later
+          summary: latest.summary_text,
+          clinicalNotes: latest.recommendations?.join(", ") || "No clinical notes available.",
+        });
+      } catch (err) {
+        console.error(err);
+        toast({
+          title: "Error",
+          description: "Failed to load the report summary. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
+  }, [toast]);
 
   const handlePlayAudio = async () => {
     setPlayingAudio(true);
-    
+
     try {
       // Simulate TTS API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       toast({
         title: "Audio Generated",
         description: "Playing audio summary of your medical report.",
       });
-      
+
       // In real implementation, this would call the /tts endpoint
       // and play the returned audio
-      
     } catch (error) {
       toast({
         title: "Audio Error",
         description: "Failed to generate audio. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setPlayingAudio(false);
@@ -138,31 +110,35 @@ const Summary = () => {
   const handleExportPDF = async () => {
     try {
       // Simulate PDF export API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       toast({
         title: "PDF Exported",
         description: "Your medical report summary has been downloaded.",
       });
-      
+
       // In real implementation, this would call /export-summary/{id}
-      
     } catch (error) {
       toast({
-        title: "Export Error", 
+        title: "Export Error",
         description: "Failed to export PDF. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'normal': return 'text-green-700 bg-green-50';
-      case 'high': return 'text-orange-700 bg-orange-50';
-      case 'low': return 'text-blue-700 bg-blue-50';
-      case 'critical': return 'text-red-700 bg-red-50';
-      default: return 'text-gray-700 bg-gray-50';
+      case "normal":
+        return "text-green-700 bg-green-50";
+      case "high":
+        return "text-orange-700 bg-orange-50";
+      case "low":
+        return "text-blue-700 bg-blue-50";
+      case "critical":
+        return "text-red-700 bg-red-50";
+      default:
+        return "text-gray-700 bg-gray-50";
     }
   };
 
@@ -173,7 +149,7 @@ const Summary = () => {
           <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div>
           <div className="h-8 bg-muted rounded w-1/4 animate-pulse"></div>
         </div>
-        
+
         <div className="grid gap-6 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="medical-card animate-pulse">
@@ -215,7 +191,7 @@ const Summary = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          
+
           <div>
             <h1 className="text-3xl font-bold text-foreground">Report Summary</h1>
             <p className="text-muted-foreground">{reportData.fileName}</p>
@@ -229,9 +205,9 @@ const Summary = () => {
             className="medical-button-primary"
           >
             <Play className="h-4 w-4 mr-2" />
-            {playingAudio ? 'Playing...' : 'Play Voice'}
+            {playingAudio ? "Playing..." : "Play Voice"}
           </Button>
-          
+
           <Button
             onClick={handleExportPDF}
             className="medical-button-secondary"
@@ -300,7 +276,11 @@ const Summary = () => {
                     <TableCell>{result.result}</TableCell>
                     <TableCell className="text-muted-foreground">{result.reference}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(result.status)}`}>
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(
+                          result.status
+                        )}`}
+                      >
                         {result.status.toUpperCase()}
                       </span>
                     </TableCell>

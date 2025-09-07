@@ -4,14 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined. Please set it in your environment variables.");
+}
+
 interface Message {
   id: string;
-  type: 'user' | 'ai';
+  type: "user" | "ai";
   content: string;
   timestamp: Date;
   metadata?: {
     conditions?: string[];
-    urgency?: 'low' | 'medium' | 'high';
+    urgency?: "low" | "medium" | "high";
     recommendations?: string[];
   };
 }
@@ -19,13 +25,14 @@ interface Message {
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      type: 'ai',
-      content: "Hello! I'm your AI health assistant. Please describe your symptoms and I'll help assess them. Remember, this is for informational purposes only and not a substitute for professional medical advice.",
-      timestamp: new Date()
-    }
+      id: "1",
+      type: "ai",
+      content:
+        "Hello! I'm your AI health assistant. Please describe your symptoms and I'll help assess them. Remember, this is for informational purposes only and not a substitute for professional medical advice.",
+      timestamp: new Date(),
+    },
   ]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -42,86 +49,54 @@ const Chat = () => {
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      type: 'user',
+      type: "user",
       content: inputValue,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(inputValue);
-      setMessages(prev => [...prev, aiResponse]);
+    try {
+      const res = await fetch(`${API_URL}/symptom-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: "test123", message: inputValue }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Chat failed");
+
+      const aiResponse: Message = {
+        id: Date.now().toString(),
+        type: "ai",
+        content: "Here’s what I found based on your symptoms:",
+        timestamp: new Date(),
+        metadata: {
+          conditions: data.possible_conditions,
+          urgency: data.urgency,
+          recommendations: data.recommended_actions,
+        },
+      };
+
+      setMessages((prev) => [...prev, aiResponse]);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: "ai",
+          content: "Error contacting AI service. Please try again.",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 2000);
-  };
-
-  const generateAIResponse = (userInput: string): Message => {
-    const input = userInput.toLowerCase();
-    
-    let response = "Based on your symptoms, here's what I can tell you:";
-    let conditions: string[] = [];
-    let urgency: 'low' | 'medium' | 'high' = 'low';
-    let recommendations: string[] = [];
-
-    if (input.includes('headache') || input.includes('head pain')) {
-      conditions = ['Tension Headache', 'Migraine', 'Sinus Congestion'];
-      urgency = 'medium';
-      recommendations = [
-        'Rest in a quiet, dark room',
-        'Stay hydrated',
-        'Consider over-the-counter pain relief',
-        'Monitor symptoms for 24-48 hours'
-      ];
-      response = "Headaches can have various causes. Based on your description, here are some possibilities:";
-    } else if (input.includes('fever') || input.includes('temperature')) {
-      conditions = ['Viral Infection', 'Bacterial Infection', 'Flu'];
-      urgency = 'medium';
-      recommendations = [
-        'Monitor temperature regularly',
-        'Rest and stay hydrated',
-        'Consider seeing a healthcare provider if fever persists > 3 days',
-        'Seek immediate care if temperature > 103°F (39.4°C)'
-      ];
-      response = "Fever is your body's natural response to infection. Here's what to consider:";
-    } else if (input.includes('chest pain') || input.includes('heart')) {
-      conditions = ['Chest Wall Pain', 'Acid Reflux', 'Anxiety'];
-      urgency = 'high';
-      recommendations = [
-        '⚠️ SEEK IMMEDIATE MEDICAL ATTENTION if pain is severe',
-        'Call emergency services if accompanied by shortness of breath',
-        'Avoid physical exertion',
-        'Do not drive yourself to hospital'
-      ];
-      response = "Chest pain requires careful evaluation. While many causes are benign, some require immediate attention:";
-    } else {
-      conditions = ['Common Cold', 'Viral Syndrome', 'Stress-related symptoms'];
-      recommendations = [
-        'Rest and monitor symptoms',
-        'Stay well-hydrated',
-        'Consider consulting a healthcare provider if symptoms worsen',
-        'Practice good hygiene to prevent spread'
-      ];
     }
-
-    return {
-      id: (Date.now() + 1).toString(),
-      type: 'ai',
-      content: response,
-      timestamp: new Date(),
-      metadata: {
-        conditions,
-        urgency,
-        recommendations
-      }
-    };
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
@@ -129,9 +104,12 @@ const Chat = () => {
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
-      case 'high': return 'text-red-600 bg-red-50 border-red-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      default: return 'text-green-600 bg-green-50 border-green-200';
+      case "high":
+        return "text-red-600 bg-red-50 border-red-200";
+      case "medium":
+        return "text-yellow-600 bg-yellow-50 border-yellow-200";
+      default:
+        return "text-green-600 bg-green-50 border-green-200";
     }
   };
 
@@ -150,20 +128,38 @@ const Chat = () => {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              key={message.id}
+              className={`flex ${
+                message.type === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
               <div className="max-w-xs md:max-w-md lg:max-w-lg">
-                <div className={message.type === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
+                <div
+                  className={
+                    message.type === "user"
+                      ? "chat-bubble-user"
+                      : "chat-bubble-ai"
+                  }
+                >
                   <p className="text-sm">{message.content}</p>
                   <p className="text-xs opacity-70 mt-1">
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 </div>
 
                 {/* AI Metadata */}
-                {message.type === 'ai' && message.metadata && (
+                {message.type === "ai" && message.metadata && (
                   <div className="mt-3 space-y-2">
                     {/* Urgency Level */}
-                    <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getUrgencyColor(message.metadata.urgency || 'low')}`}>
+                    <div
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getUrgencyColor(
+                        message.metadata.urgency || "low"
+                      )}`}
+                    >
                       <AlertCircle className="h-3 w-3 mr-1" />
                       {message.metadata.urgency?.toUpperCase()} PRIORITY
                     </div>
@@ -176,11 +172,16 @@ const Chat = () => {
                           Possible Conditions
                         </h4>
                         <div className="flex flex-wrap gap-1">
-                          {message.metadata.conditions?.map((condition, index) => (
-                            <span key={index} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                              {condition}
-                            </span>
-                          ))}
+                          {message.metadata.conditions?.map(
+                            (condition, index) => (
+                              <span
+                                key={index}
+                                className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs"
+                              >
+                                {condition}
+                              </span>
+                            )
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -188,14 +189,18 @@ const Chat = () => {
                     {/* Recommendations */}
                     <Card className="bg-green-50 border-green-200">
                       <CardContent className="p-3">
-                        <h4 className="font-medium text-green-800 mb-2">Recommendations</h4>
+                        <h4 className="font-medium text-green-800 mb-2">
+                          Recommendations
+                        </h4>
                         <ul className="text-sm text-green-700 space-y-1">
-                          {message.metadata.recommendations?.map((rec, index) => (
-                            <li key={index} className="flex items-start">
-                              <span className="text-green-500 mr-2">•</span>
-                              {rec}
-                            </li>
-                          ))}
+                          {message.metadata.recommendations?.map(
+                            (rec, index) => (
+                              <li key={index} className="flex items-start">
+                                <span className="text-green-500 mr-2">•</span>
+                                {rec}
+                              </li>
+                            )
+                          )}
                         </ul>
                       </CardContent>
                     </Card>
@@ -211,13 +216,19 @@ const Chat = () => {
               <div className="chat-bubble-ai">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse"></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                  <div
+                    className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse"
+                    style={{ animationDelay: "0.4s" }}
+                  ></div>
                 </div>
               </div>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -227,31 +238,35 @@ const Chat = () => {
             <Input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               placeholder="Describe your symptoms..."
               className="flex-1 medical-input"
               disabled={isTyping}
+              aria-label="Chat input"
             />
-            
-            <Button 
+
+            <Button
               onClick={sendMessage}
               disabled={!inputValue.trim() || isTyping}
               className="medical-button-primary"
+              aria-label="Send message"
             >
               <Send className="h-4 w-4" />
             </Button>
-            
-            <Button 
+
+            <Button
               variant="outline"
               className="px-3"
               disabled={isTyping}
+              aria-label="Voice input"
             >
               <Mic className="h-4 w-4" />
             </Button>
           </div>
-          
+
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            This is for informational purposes only. Seek professional medical advice for health concerns.
+            This is for informational purposes only. Seek professional medical
+            advice for health concerns.
           </p>
         </div>
       </Card>
